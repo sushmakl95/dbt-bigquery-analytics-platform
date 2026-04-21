@@ -36,7 +36,7 @@ dev = [
 airflow = [
     "apache-airflow>=2.9",
     "apache-airflow-providers-google>=10.16",
-    "astronomer-cosmos>=1.4",  # dbt-in-Airflow task group orchestration
+    "astronomer-cosmos>=1.4",
 ]
 
 [project.scripts]
@@ -47,7 +47,7 @@ where = ["."]
 include = ["scripts*"]
 
 # --------------------------------------------------------------------------
-# Ruff — same verified config from Repos 1 & 2
+# Ruff — battle-tested config from Repos 1 + 2
 # --------------------------------------------------------------------------
 [tool.ruff]
 line-length = 110
@@ -64,6 +64,11 @@ ignore = [
 "tests/*" = ["S", "RUF059", "B"]
 "scripts/*" = ["S603", "S607"]
 "**/__init__.py" = ["F401"]
+
+# Our directory is named `airflow/` (for DAG files) but the `airflow` package
+# we import is third-party. Tell ruff's isort explicitly.
+[tool.ruff.lint.isort]
+known-third-party = ["airflow", "cosmos", "google", "dbt", "pendulum"]
 
 [tool.ruff.format]
 quote-style = "double"

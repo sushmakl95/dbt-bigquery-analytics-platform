@@ -3,7 +3,6 @@ version: 2
 sources:
   - name: raw_ecommerce
     description: "Raw event/operational tables delivered via Fivetran from the ecommerce OLTP."
-    database: "{{ env_var('DBT_RAW_PROJECT', target.project) }}"
     schema: raw_ecommerce
     loaded_at_field: _loaded_at
 

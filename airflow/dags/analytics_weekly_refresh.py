@@ -46,7 +46,7 @@ with DAG(
     dag_id="analytics_weekly_full_refresh",
     description="Weekly full-refresh of incremental facts + dim snapshots",
     start_date=datetime(2026, 1, 1),
-    schedule="0 2 * * 0",  # Sun 02:00 UTC
+    schedule="0 2 * * 0",
     catchup=False,
     max_active_runs=1,
     default_args=default_args,

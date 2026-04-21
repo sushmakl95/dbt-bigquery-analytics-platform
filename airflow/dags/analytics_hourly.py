@@ -87,11 +87,9 @@ with DAG(
     default_args=default_args,
     tags=["dbt", "freshness"],
 ) as freshness_dag:
-    from cosmos import DbtTaskGroup as DbtFreshnessGroup
+    freshness_start = EmptyOperator(task_id="start")
 
-    start = EmptyOperator(task_id="start")
-
-    freshness_check = DbtFreshnessGroup(
+    freshness_check = DbtTaskGroup(
         group_id="source_freshness",
         project_config=ProjectConfig(DBT_PROJECT_DIR),
         profile_config=profile_config,
@@ -103,6 +101,6 @@ with DAG(
         operator_args={"command": "source freshness"},
     )
 
-    end = EmptyOperator(task_id="end")
+    freshness_end = EmptyOperator(task_id="end")
 
-    start >> freshness_check >> end
+    freshness_start >> freshness_check >> freshness_end
