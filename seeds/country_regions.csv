@@ -1,0 +1,24 @@
+country_code,region_name,sub_region
+US,Americas,North America
+CA,Americas,North America
+MX,Americas,North America
+BR,Americas,South America
+AR,Americas,South America
+GB,Europe,Western Europe
+DE,Europe,Western Europe
+FR,Europe,Western Europe
+IT,Europe,Southern Europe
+ES,Europe,Southern Europe
+NL,Europe,Western Europe
+SE,Europe,Northern Europe
+IN,APAC,Southern Asia
+CN,APAC,Eastern Asia
+JP,APAC,Eastern Asia
+KR,APAC,Eastern Asia
+SG,APAC,Southeastern Asia
+AU,APAC,Oceania
+NZ,APAC,Oceania
+ZA,Africa,Sub-Saharan Africa
+EG,Africa,Northern Africa
+AE,MEA,Western Asia
+SA,MEA,Western Asia

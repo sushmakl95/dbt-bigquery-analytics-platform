@@ -1,0 +1,84 @@
+name: analytics_platform
+version: 1.0.0
+config-version: 2
+
+profile: analytics_platform
+
+# Directory configs
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+# Global variable defaults (overridden per env in profiles.yml)
+vars:
+  # Date bounds used by incremental models to cap scans
+  lookback_days: 3
+  # Swap to true in CI to shrink data volume
+  is_ci_run: false
+
+# Model-level configuration — drives schema routing, materialization, tags
+models:
+  analytics_platform:
+    # Default materialization for all models
+    +materialized: view
+    +persist_docs:
+      relation: true
+      columns: true
+
+    staging:
+      +materialized: view
+      +schema: bronze
+      +tags: ["staging", "daily"]
+
+    intermediate:
+      +materialized: ephemeral
+      +schema: silver
+      +tags: ["intermediate"]
+
+    marts:
+      +materialized: table
+      +schema: gold
+      +tags: ["marts"]
+
+      core:
+        +tags: ["core", "critical"]
+      finance:
+        +tags: ["finance"]
+      marketing:
+        +tags: ["marketing"]
+
+# Snapshot configuration
+snapshots:
+  analytics_platform:
+    +target_schema: snapshots
+    +strategy: check
+    +check_cols: all
+    +invalidate_hard_deletes: true
+
+# Seed configuration
+seeds:
+  analytics_platform:
+    +schema: reference
+    +column_types:
+      country_code: "STRING"
+      region_name: "STRING"
+
+# On-run hooks — capture audit metadata every run
+on-run-start:
+  - "{{ create_audit_schema_if_not_exists() }}"
+on-run-end:
+  - "{{ log_run_completion() }}"
+
+# Query comment — helps identify dbt queries in BigQuery INFORMATION_SCHEMA
+query-comment:
+  comment: "dbt-{{ dbt_version }} | {{ invocation_id }} | {{ node.name if node else 'run-start' }}"
+  append: true

@@ -1,0 +1,95 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "Cleansed orders — 1:1 with raw_ecommerce.orders after typing + rename."
+    columns:
+      - name: order_id
+        description: "Source PK."
+        tests: [unique, not_null]
+      - name: order_sk
+        description: "Deterministic surrogate key (SHA256 of order_id)."
+        tests: [unique, not_null]
+      - name: customer_id
+        description: "FK to stg_customers."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: order_status
+        description: "Normalized lowercase status."
+        tests:
+          - assert_values_in_set:
+              values: ["placed", "paid", "shipped", "delivered", "cancelled"]
+      - name: total_amount
+        description: "Order total in original currency."
+        tests: [assert_non_negative]
+      - name: placed_at
+        tests: [not_null]
+      - name: order_date
+        description: "Date-partitioned helper."
+        tests: [not_null]
+
+  - name: stg_customers
+    description: "Cleansed customer master."
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: customer_sk
+        tests: [unique, not_null]
+      - name: email
+        tests: [unique, not_null]
+      - name: tier
+        tests:
+          - assert_values_in_set:
+              values: ["bronze", "silver", "gold", "platinum"]
+      - name: country
+        description: "ISO-2 country code (uppercase)."
+        tests: [not_null]
+
+  - name: stg_order_items
+    description: "Cleansed order line items with gross/net calculations pre-computed."
+    columns:
+      - name: order_item_sk
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: line_item_id
+        tests: [not_null]
+      - name: quantity
+        tests: [assert_non_negative]
+      - name: discount_pct
+        description: "0.0-1.0 discount fraction. Defaults to 0 when NULL in source."
+      - name: line_net_amount
+        description: "quantity * unit_price * (1 - discount_pct)."
+        tests: [assert_non_negative]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, line_item_id]
+
+  - name: stg_products
+    description: "Cleansed product catalog."
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: sku
+        tests: [unique, not_null]
+      - name: list_price
+        tests: [assert_non_negative]
+
+  - name: stg_sessions
+    description: "Cleansed web/mobile sessions."
+    columns:
+      - name: session_sk
+        tests: [unique, not_null]
+      - name: session_id
+        tests: [unique, not_null]
+      - name: customer_id
+        description: "Nullable — anonymous sessions allowed."
+      - name: session_duration_seconds
+        description: "NULL if session hasn't ended yet."

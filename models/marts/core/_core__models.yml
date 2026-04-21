@@ -1,0 +1,124 @@
+version: 2
+
+models:
+  - name: dim_customer
+    description: |
+      Canonical customer dimension. One row per customer with enriched
+      lifetime metrics (LTV, order count, recency segment).
+
+      **Partitioned by** `customer_created_date` (month).
+      **Clustered on** `country, tier` for efficient BI predicates.
+    columns:
+      - name: customer_sk
+        description: "Surrogate key (SHA256 of customer_id)."
+        tests: [unique, not_null]
+      - name: customer_id
+        description: "Natural key from source."
+        tests: [unique, not_null]
+      - name: email
+        tests: [not_null]
+      - name: country
+        tests: [not_null]
+      - name: tier
+        tests:
+          - assert_values_in_set:
+              values: ["bronze", "silver", "gold", "platinum"]
+      - name: lifetime_order_count
+        tests: [assert_non_negative]
+      - name: lifetime_gross_revenue
+        tests: [assert_non_negative]
+      - name: recency_segment
+        tests:
+          - assert_values_in_set:
+              values: ["never_ordered", "active", "recent", "dormant", "churned"]
+
+  - name: dim_product
+    description: "Canonical product dimension. Clustered on category."
+    columns:
+      - name: product_sk
+        tests: [unique, not_null]
+      - name: product_id
+        tests: [unique, not_null]
+      - name: sku
+        tests: [unique, not_null]
+      - name: list_price
+        tests: [assert_non_negative]
+
+  - name: fct_orders
+    description: |
+      Order-grain fact table. Incremental with MERGE on `order_sk`.
+      Partitioned by order_date; clustered on customer_id + order_status.
+    columns:
+      - name: order_sk
+        tests: [unique, not_null]
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_sk
+      - name: order_total_amount
+        tests: [assert_non_negative]
+      - name: order_date
+        tests: [not_null]
+      - name: has_total_mismatch
+        description: "TRUE when reported total differs from line items by >1%."
+
+  - name: fct_order_items
+    description: "Line-item grain fact. Partitioned by order_date; clustered by product_id."
+    columns:
+      - name: order_item_sk
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_orders')
+              field: order_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_id
+      - name: line_net_amount
+        tests: [assert_non_negative]
+
+exposures:
+  - name: finance_revenue_dashboard
+    type: dashboard
+    maturity: high
+    url: https://tableau.example.com/dashboards/finance/revenue
+    owner:
+      name: Finance Analytics Team
+      email: finance-analytics@example.com
+    description: |
+      Daily/weekly/monthly revenue dashboard used in CFO reviews.
+      Depends on fct_orders for gross revenue; dim_customer for segmentation.
+    depends_on:
+      - ref('fct_orders')
+      - ref('dim_customer')
+
+  - name: marketing_cohort_analysis
+    type: dashboard
+    maturity: medium
+    url: https://looker.example.com/dashboards/marketing/cohort
+    owner:
+      name: Growth Marketing
+      email: growth@example.com
+    description: "Cohort retention + LTV dashboard."
+    depends_on:
+      - ref('dim_customer')
+      - ref('fct_orders')
+
+  - name: churn_prediction_model
+    type: ml
+    maturity: medium
+    owner:
+      name: ML Platform
+      email: ml-platform@example.com
+    description: "Gradient-boost churn model; retrains weekly from dim_customer features."
+    depends_on:
+      - ref('dim_customer')

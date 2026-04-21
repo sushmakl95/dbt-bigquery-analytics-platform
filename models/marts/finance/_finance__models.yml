@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: revenue_ledger
+    description: "Daily gross + net revenue roll-up by (date, currency, country, tier)."
+    columns:
+      - name: revenue_date
+        tests: [not_null]
+      - name: order_count
+        tests: [assert_non_negative]
+      - name: gross_revenue
+        tests: [assert_non_negative]
+      - name: net_revenue
+        tests: [assert_non_negative]
+
+  - name: customer_ltv
+    description: "Per-customer lifetime value with LTV segment."
+    columns:
+      - name: customer_sk
+        tests: [unique, not_null]
+      - name: ltv_segment
+        tests:
+          - assert_values_in_set:
+              values: ["whale", "high_value", "mid_value", "low_value", "non_buyer"]
+
+exposures:
+  - name: cfo_revenue_review
+    type: analysis
+    maturity: high
+    owner:
+      name: Finance Leadership
+      email: cfo-office@example.com
+    description: "Weekly CFO revenue review deck — powered by revenue_ledger."
+    depends_on:
+      - ref('revenue_ledger')

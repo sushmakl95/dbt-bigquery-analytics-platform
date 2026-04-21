@@ -1,0 +1,44 @@
+# Copy to ~/.dbt/profiles.yml and fill in real values. NEVER commit real values.
+
+analytics_platform:
+  target: dev
+  outputs:
+    # ---------------------------------------------------------------------
+    # dev — personal development against a sandbox BQ dataset
+    # ---------------------------------------------------------------------
+    dev:
+      type: bigquery
+      method: service-account
+      project: my-gcp-project-dev
+      dataset: dbt_sushma              # personal dev schema (`bronze` etc. get prefix)
+      keyfile: /path/to/service-account.json
+      threads: 8
+      timeout_seconds: 300
+      location: US
+      priority: interactive
+      job_retries: 2
+
+    # ---------------------------------------------------------------------
+    # prod — production, run only from Cloud Composer
+    # ---------------------------------------------------------------------
+    prod:
+      type: bigquery
+      method: oauth                    # Composer uses workload identity, no keyfile
+      project: my-gcp-project-prod
+      dataset: analytics               # base schema; layers append bronze/silver/gold
+      threads: 16
+      timeout_seconds: 600
+      location: US
+      priority: batch
+      job_retries: 3
+      labels:
+        env: prod
+        team: data-platform
+
+    # ---------------------------------------------------------------------
+    # duckdb — zero-cost local dev against DuckDB
+    # ---------------------------------------------------------------------
+    duckdb:
+      type: duckdb
+      path: /tmp/analytics_platform.duckdb
+      threads: 4

@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# GCP
+*.json
+!dbt_project.yml
+!*.example.json
+!seeds/*.csv
+
+# Secrets
+.env
+.env.*
+!.env.example
+service-account*.json
+credentials*.json
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Airflow
+airflow.db
+airflow.cfg
+webserver_config.py

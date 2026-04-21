@@ -1,0 +1,88 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbt-bigquery-analytics-platform"
+version = "1.0.0"
+description = "Production-grade modern data stack: dbt + BigQuery + Airflow (Cloud Composer)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Sushma K L", email = "sushmakl95@gmail.com" }]
+keywords = ["dbt", "bigquery", "gcp", "analytics-engineering", "data-engineering"]
+
+dependencies = [
+    "dbt-core>=1.8.0,<1.9",
+    "dbt-bigquery>=1.8.0,<1.9",
+    "google-cloud-bigquery>=3.20",
+    "pyyaml>=6.0.1",
+    "click>=8.1.7",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "dbt-duckdb>=1.8.0",
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
+    "bandit[toml]>=1.7.8",
+    "detect-secrets>=1.5.0",
+    "pre-commit>=3.7.0",
+    "sqlfluff>=3.0.0",
+    "sqlfluff-templater-dbt>=3.0.0",
+]
+airflow = [
+    "apache-airflow>=2.9",
+    "apache-airflow-providers-google>=10.16",
+    "astronomer-cosmos>=1.4",  # dbt-in-Airflow task group orchestration
+]
+
+[project.scripts]
+analytics-platform = "scripts.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scripts*"]
+
+# --------------------------------------------------------------------------
+# Ruff — same verified config from Repos 1 & 2
+# --------------------------------------------------------------------------
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["target/*", "dbt_packages/*"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "RUF"]
+ignore = [
+    "E501", "N812", "S608", "RUF022", "UP042", "B008", "RUF012",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "RUF059", "B"]
+"scripts/*" = ["S603", "S607"]
+"**/__init__.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["tests/", "airflow/"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "scripts"]
+skips = ["B101", "B608"]

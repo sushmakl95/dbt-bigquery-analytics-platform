@@ -1,0 +1,5 @@
+gcp_project               = "my-gcp-sandbox"
+gcp_region                = "US"
+environment               = "dev"
+dbt_service_account_email = "dbt-runner@my-gcp-sandbox.iam.gserviceaccount.com"
+analysts_group_email      = "data-analysts@example.com"

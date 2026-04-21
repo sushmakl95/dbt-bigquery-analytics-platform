@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: session_funnel
+    description: "Daily session → conversion funnel by traffic source × device type."
+    columns:
+      - name: funnel_date
+        tests: [not_null]
+      - name: traffic_source
+        tests: [not_null]
+      - name: session_count
+        tests: [assert_non_negative]
+      - name: conversion_rate
+        description: "Ratio of converting customers to authenticated sessions. NULL if no sessions."
+
+exposures:
+  - name: growth_weekly_standup
+    type: dashboard
+    maturity: medium
+    owner:
+      name: Growth Team
+      email: growth@example.com
+    description: "Weekly growth team standup dashboard."
+    depends_on:
+      - ref('session_funnel')

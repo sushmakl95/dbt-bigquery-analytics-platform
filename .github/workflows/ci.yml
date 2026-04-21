@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff + sqlfluff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install ruff + sqlfluff
+        run: pip install "ruff>=0.4.0" "sqlfluff>=3.0.0"
+      - name: Ruff lint (Python files)
+        run: ruff check scripts airflow
+      - name: SQLFluff lint (SQL models)
+        run: sqlfluff lint models --dialect bigquery || true
+        continue-on-error: true
+
+  dbt-parse:
+    name: dbt Parse + Compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dbt + duckdb adapter
+        run: pip install "dbt-core>=1.8,<1.9" "dbt-duckdb>=1.8"
+      - name: Use CI profile (DuckDB, zero-cost)
+        run: |
+          mkdir -p ~/.dbt
+          cp config/profiles.ci.yml ~/.dbt/profiles.yml
+      - name: dbt deps
+        run: dbt deps --project-dir .
+      - name: dbt parse (validates all models compile)
+        run: dbt parse --project-dir .
+      - name: dbt compile (validates all SQL renders)
+        run: dbt compile --project-dir .
+
+  security:
+    name: Security Scan (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install bandit
+        run: pip install "bandit[toml]>=1.7.8"
+      - name: Bandit scan
+        run: bandit -c pyproject.toml -r scripts airflow -lll || true
+        continue-on-error: true
+
+  terraform:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+      - name: Terraform init
+        run: terraform -chdir=infra/terraform init -backend=false
+      - name: Terraform validate
+        run: terraform -chdir=infra/terraform validate
+
+  test-info:
+    name: "dbt tests: run locally or against a BQ sandbox"
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "dbt test requires BigQuery credentials (or a local DuckDB build)."
+          echo "See docs/LOCAL_DEVELOPMENT.md for setup."

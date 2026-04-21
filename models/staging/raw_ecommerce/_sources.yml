@@ -1,0 +1,73 @@
+version: 2
+
+sources:
+  - name: raw_ecommerce
+    description: "Raw event/operational tables delivered via Fivetran from the ecommerce OLTP."
+    database: "{{ env_var('DBT_RAW_PROJECT', target.project) }}"
+    schema: raw_ecommerce
+    loaded_at_field: _loaded_at
+
+    # Freshness SLA: alert if the most recent _loaded_at is > 6h old.
+    freshness:
+      warn_after: { count: 6, period: hour }
+      error_after: { count: 24, period: hour }
+
+    tables:
+      - name: orders
+        description: "Orders placed on the e-commerce site."
+        columns:
+          - name: order_id
+            description: "Primary key."
+            tests: [unique, not_null]
+          - name: customer_id
+            tests: [not_null]
+          - name: order_status
+            tests:
+              - assert_values_in_set:
+                  values: ["placed", "paid", "shipped", "delivered", "cancelled"]
+          - name: total_amount
+            tests: [assert_non_negative]
+          - name: placed_at
+            tests: [not_null]
+          - name: _loaded_at
+            tests: [not_null]
+
+      - name: customers
+        description: "Customer master table."
+        columns:
+          - name: customer_id
+            tests: [unique, not_null]
+          - name: email
+            tests: [not_null]
+
+      - name: order_items
+        description: "Order line items — one row per (order, line)."
+        columns:
+          - name: order_id
+            tests: [not_null]
+          - name: line_item_id
+            tests: [not_null]
+          - name: quantity
+            tests: [assert_non_negative]
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [order_id, line_item_id]
+
+      - name: products
+        description: "Product catalog."
+        columns:
+          - name: product_id
+            tests: [unique, not_null]
+          - name: sku
+            tests: [unique, not_null]
+          - name: price
+            tests: [assert_non_negative]
+
+      - name: sessions
+        description: "Web/mobile session events (one row per session start)."
+        columns:
+          - name: session_id
+            tests: [unique, not_null]
+          - name: customer_id
+          - name: started_at
+            tests: [not_null]
