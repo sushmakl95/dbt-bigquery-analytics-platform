@@ -4,6 +4,9 @@ config-version: 2
 
 profile: analytics_platform
 
+# Require dbt 1.9+ for microbatch incremental strategy + unit tests
+require-dbt-version: [">=1.9.0", "<2.0.0"]
+
 # Directory configs
 model-paths: ["models"]
 analysis-paths: ["analyses"]

@@ -1,0 +1,93 @@
+version: 2
+
+# dbt Semantic Layer / MetricFlow. Binds marts to a stable metric vocabulary
+# consumed by BI (Tableau, Power BI, Qlik, Superset) and the dbt Cloud API.
+
+semantic_models:
+
+  - name: sales
+    description: Sales grain semantic model backed by the canonical fct_orders.
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: order_date
+
+    entities:
+      - name: order
+        type: primary
+        expr: order_sk
+      - name: customer
+        type: foreign
+        expr: customer_id
+
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: order_status
+        type: categorical
+      - name: customer_country
+        type: categorical
+        expr: customer_country
+      - name: tier
+        type: categorical
+
+    measures:
+      - name: gross_revenue
+        description: "Sum of order_total_amount."
+        agg: sum
+        expr: order_total_amount
+      - name: net_revenue
+        description: "Sum of items_net_amount (excludes shipping + tax)."
+        agg: sum
+        expr: items_net_amount
+      - name: order_count
+        description: "Count of distinct orders."
+        agg: count_distinct
+        expr: order_sk
+      - name: item_quantity
+        agg: sum
+        expr: total_quantity
+
+
+metrics:
+
+  - name: gross_revenue
+    label: "Gross Revenue"
+    type: simple
+    type_params:
+      measure: gross_revenue
+
+  - name: net_revenue
+    label: "Net Revenue"
+    type: simple
+    type_params:
+      measure: net_revenue
+
+  - name: orders
+    label: "Orders"
+    type: simple
+    type_params:
+      measure: order_count
+
+  - name: average_order_value
+    label: "Average Order Value"
+    description: "AOV = gross_revenue / orders"
+    type: ratio
+    type_params:
+      numerator: gross_revenue
+      denominator: orders
+
+  - name: units_per_order
+    label: "Units per Order"
+    type: derived
+    type_params:
+      expr: "item_quantity / orders"
+      metrics:
+        - name: orders
+
+  - name: item_quantity
+    label: "Item Quantity"
+    type: simple
+    type_params:
+      measure: item_quantity

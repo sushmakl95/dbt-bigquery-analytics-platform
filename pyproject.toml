@@ -13,12 +13,13 @@ authors = [{ name = "Sushma K L", email = "sushmakl95@gmail.com" }]
 keywords = ["dbt", "bigquery", "gcp", "analytics-engineering", "data-engineering"]
 
 dependencies = [
-    "dbt-core>=1.8.0,<1.9",
-    "dbt-bigquery>=1.8.0,<1.9",
+    "dbt-core>=1.9.0,<1.10",
+    "dbt-bigquery>=1.9.0,<1.10",
     "google-cloud-bigquery>=3.20",
     "pyyaml>=6.0.1",
     "click>=8.1.7",
     "structlog>=24.1.0",
+    "openlineage-dbt>=1.16.0",
 ]
 
 [project.optional-dependencies]

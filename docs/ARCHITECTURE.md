@@ -2,36 +2,82 @@
 
 ## Overview
 
-A modern, opinionated **analytics engineering platform** built on the canonical dbt medallion pattern. Raw data lands in BigQuery via Fivetran; dbt transforms it through three layers (bronze staging → silver intermediate → gold marts); Airflow (Cloud Composer) orchestrates; dashboards and ML models consume the gold layer.
+A modern, opinionated **analytics engineering platform** built on the canonical dbt medallion pattern. Raw data lands in BigQuery via Fivetran; **dbt 1.9** transforms through three layers (bronze staging → silver intermediate → gold marts) with native **unit tests** + **microbatch incremental** strategy; a **dbt Semantic Layer / MetricFlow** binds marts to stable metric definitions consumed by BI; **Airflow (Cloud Composer)** orchestrates; **OpenLineage** events flow to Marquez / DataHub.
 
+```mermaid
+flowchart LR
+    subgraph Raw["🗄️ Sources"]
+        FV[Fivetran / Airbyte]
+        RAW[(BigQuery<br/>raw_* datasets)]
+    end
+
+    subgraph Transform["🔁 dbt 1.9 medallion"]
+        STG[staging<br/>stg_* view 1:1]
+        INT[intermediate<br/>int_* ephemeral]
+        MARTS[marts<br/>core / finance / marketing]
+        SEM[Semantic Layer<br/>MetricFlow]
+        SNAP[snapshots<br/>SCD2]
+    end
+
+    subgraph Tests["✅ Tests"]
+        UT[Native unit_tests<br/>given / expect]
+        DQ[dbt_expectations +<br/>dbt_utils + singular]
+        FRESH[Source freshness]
+    end
+
+    subgraph Orch["🎼 Orchestration"]
+        AF[Airflow 2.9<br/>Cosmos DAG factory]
+        CC[Cloud Composer]
+    end
+
+    subgraph Gov["📒 Lineage + Governance"]
+        OL[openlineage-dbt]
+        MQ[Marquez]
+        DH[DataHub / OpenMetadata]
+    end
+
+    subgraph Consume["📊 Consume"]
+        TB[Tableau]
+        LK[Looker]
+        ML[ML features]
+        SL[dbt Semantic Layer API]
+    end
+
+    FV --> RAW --> STG --> INT --> MARTS --> SEM
+    MARTS --> SNAP
+    UT -. gates .-> MARTS
+    DQ -. gates .-> MARTS
+    FRESH -. gates .-> STG
+    AF --> CC --> STG
+    MARTS -. lineage .-> OL --> MQ
+    OL --> DH
+    SEM --> SL --> TB
+    SEM --> LK
+    MARTS --> ML
 ```
-Raw Sources → Fivetran/Airbyte → BigQuery raw_* datasets
-                                        │
-                                        ▼
-                               ┌────────────────┐
-                               │  dbt staging   │  1:1 rename + type
-                               │   (bronze)     │
-                               └────────┬───────┘
-                                        ▼
-                               ┌────────────────┐
-                               │ dbt intermediate│  reusable business logic
-                               │    (silver)     │
-                               └────────┬────────┘
-                                        ▼
-              ┌────────────┬────────────┴────────────┬───────────────┐
-              ▼            ▼                         ▼               ▼
-         ┌─────────┐  ┌──────────┐              ┌─────────┐    ┌───────────┐
-         │  core   │  │ finance  │              │marketing│    │ snapshots │
-         │dim/fact │  │ledger+ltv│              │ funnel  │    │  (SCD2)   │
-         └─────┬───┘  └─────┬────┘              └────┬────┘    └───────────┘
-               │            │                        │
-               ▼            ▼                        ▼
-         ┌────────────────────────────────────────────────┐
-         │          Exposures: Tableau / Looker / ML      │
-         └────────────────────────────────────────────────┘
 
-               Airflow (Cloud Composer) orchestrates
-               dbt compiles + tests on every PR via CI
+### dbt run lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant AF as Airflow (Cosmos)
+    participant DBT as dbt 1.9
+    participant BQ as BigQuery
+    participant OL as OpenLineage
+    participant MQ as Marquez
+
+    AF->>DBT: dbt source freshness
+    DBT->>BQ: check loaded_at_field thresholds
+    AF->>DBT: dbt build --select state:modified+
+    DBT->>BQ: run staging (view)
+    DBT->>BQ: run intermediate (ephemeral)
+    DBT->>BQ: run marts (incremental microbatch)
+    DBT->>BQ: run unit_tests (no-BQ, offline)
+    DBT->>BQ: run generic + singular tests
+    DBT->>OL: emit run_results + manifest facets
+    OL->>MQ: POST /api/v1/lineage
+    AF->>DBT: dbt docs generate + upload
 ```
 
 ## Design Decisions

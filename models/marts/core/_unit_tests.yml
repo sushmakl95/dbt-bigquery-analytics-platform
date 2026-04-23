@@ -1,0 +1,47 @@
+version: 2
+
+# Native dbt 1.8+ unit tests. These run against fixture rows defined inline
+# and assert model logic without hitting BigQuery — fast, deterministic, CI-safe.
+
+unit_tests:
+
+  - name: fct_orders_flags_total_mismatch
+    description: |
+      When an order's header total disagrees with the sum of its line items
+      (after tax + shipping), fct_orders must set has_total_mismatch = true.
+    model: fct_orders
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('int_orders_enriched')
+        rows:
+          - {order_sk: 'sk-1', order_id: 'o-1', customer_id: 'c-1', order_status: 'DELIVERED',
+             order_total_amount: 100.00, items_net_amount: 90.00, items_gross_amount: 99.00,
+             tax_amount: 9.00, shipping_amount: 0.00, line_item_count: 2, total_quantity: 3,
+             order_date: '2026-04-10', updated_at: '2026-04-10 10:00:00'}
+          - {order_sk: 'sk-2', order_id: 'o-2', customer_id: 'c-2', order_status: 'PLACED',
+             order_total_amount: 50.00, items_net_amount: 40.00, items_gross_amount: 44.00,
+             tax_amount: 4.00, shipping_amount: 10.00, line_item_count: 1, total_quantity: 1,
+             order_date: '2026-04-10', updated_at: '2026-04-10 11:00:00'}
+    expect:
+      rows:
+        - {order_sk: 'sk-1', has_total_mismatch: true}
+        - {order_sk: 'sk-2', has_total_mismatch: false}
+
+  - name: fct_orders_passes_through_base_columns
+    description: "Core order attributes flow through unchanged from int_orders_enriched."
+    model: fct_orders
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('int_orders_enriched')
+        rows:
+          - {order_sk: 'sk-x', order_id: 'o-x', customer_id: 'c-x', order_status: 'PLACED',
+             order_total_amount: 42.00, items_net_amount: 40.00, items_gross_amount: 42.00,
+             tax_amount: 2.00, shipping_amount: 0.00, line_item_count: 1, total_quantity: 1,
+             order_date: '2026-04-20', updated_at: '2026-04-20 08:00:00'}
+    expect:
+      rows:
+        - {order_sk: 'sk-x', order_id: 'o-x', customer_id: 'c-x', order_status: 'PLACED'}
